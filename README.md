@@ -4,7 +4,7 @@ Heads-up Texas Hold'em on Base mainnet, settled in **CLAWD**. Every hand burns 1
 
 - **Network:** Base mainnet (chainId `8453`)
 - **Contract:** `ClawdPoker` at [`0x10cd417a4197153a90d88cb47f132f5bcd996535`](https://basescan.org/address/0x10cd417a4197153a90d88cb47f132f5bcd996535)
-- **CLAWD token:** [`0xfB6Eac0e8A5175ED0c06B6293E5cf3ecf3bA63Dd`](https://basescan.org/token/0xfB6Eac0e8A5175ED0c06B6293E5cf3ecf3bA63Dd)
+- **CLAWD token:** [`0x9f86dB9fc6f7c9408e8Fda3Ff8ce4e78ac7a6b07`](https://basescan.org/token/0x9f86dB9fc6f7c9408e8Fda3Ff8ce4e78ac7a6b07)
 - **Randomness:** Chainlink VRF v2.5
 - **Dealer:** off-chain service that deals cards via commit-reveal and posts community cards
 
