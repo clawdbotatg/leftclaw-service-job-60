@@ -3,7 +3,6 @@ pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
 import {ClawdPoker} from "../contracts/ClawdPoker.sol";
-import {PokerHandEvaluator} from "../contracts/PokerHandEvaluator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {VRFCoordinatorV2_5Mock} from
@@ -483,7 +482,9 @@ contract ClawdPokerTest is Test {
 
         bytes32[52] memory commits;
         for (uint256 i = 0; i < 52; i++) {
-            commits[i] = keccak256(abi.encodePacked(bytes32(uint256(i + 1)), uint8(i)));
+            // Seed each slot with a distinct, non-zero commit. We pass `i+1` as bytes32 so the
+            // data is uniformly 32-byte; no narrowing cast needed, no forge-lint warning.
+            commits[i] = keccak256(abi.encodePacked(bytes32(uint256(i + 1))));
         }
         vm.prank(charlie); // charlie is not the owner
         vm.expectRevert("Only callable by owner");
