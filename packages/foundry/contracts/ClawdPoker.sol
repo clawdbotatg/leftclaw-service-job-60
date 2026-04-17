@@ -553,10 +553,17 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
 
     function _settle(Game storage g, uint256 gameId, address loser) internal {
         // Caller must have already validated that loser is one of the two players.
+        // Pull any chips still sitting in player stacks into the pot so the winner is paid
+        // the full on-contract balance attributable to this hand. This is required because
+        // stacks only move into `pot` during betting; a preflop fold leaves both buy-ins in
+        // their respective stacks.
+        uint256 total = g.pot + g.stackA + g.stackB;
+        g.stackA = 0;
+        g.stackB = 0;
+
         address winner = (loser == g.playerA) ? g.playerB : g.playerA;
-        uint256 pot = g.pot;
-        uint256 burn = (pot * BURN_BPS) / BPS_DENOM;
-        uint256 payout = pot - burn;
+        uint256 burn = (total * BURN_BPS) / BPS_DENOM;
+        uint256 payout = total - burn;
 
         g.pot = 0;
         g.phase = Phase.COMPLETE;
@@ -576,10 +583,13 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
     }
 
     function _settleSplit(Game storage g, uint256 gameId) internal {
-        uint256 pot = g.pot;
-        uint256 burn = (pot * BURN_BPS) / BPS_DENOM;
-        uint256 each = (pot - burn) / 2;
-        // If pot-burn is odd, the odd wei stays in the contract. Acceptable (effectively extra burn).
+        uint256 total = g.pot + g.stackA + g.stackB;
+        g.stackA = 0;
+        g.stackB = 0;
+
+        uint256 burn = (total * BURN_BPS) / BPS_DENOM;
+        uint256 each = (total - burn) / 2;
+        // If (total-burn) is odd, the odd wei stays in the contract. Acceptable (effectively extra burn).
         g.pot = 0;
         g.phase = Phase.COMPLETE;
         // No winner field set; no reputation/streak mutations on a tie.
