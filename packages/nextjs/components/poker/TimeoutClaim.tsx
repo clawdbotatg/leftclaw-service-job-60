@@ -1,0 +1,35 @@
+"use client";
+
+import { useState } from "react";
+import { InlineError } from "~~/components/poker/InlineError";
+import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { parsePokerError } from "~~/utils/parseError";
+
+export const TimeoutClaim = ({ gameId, show }: { gameId: bigint; show: boolean }) => {
+  const { writeContractAsync, isPending } = useScaffoldWriteContract({ contractName: "ClawdPoker" });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  if (!show) return null;
+
+  const onClaim = async () => {
+    setErr(null);
+    setBusy(true);
+    try {
+      await writeContractAsync({ functionName: "claimTimeout", args: [gameId] });
+    } catch (e) {
+      setErr(parsePokerError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-2">
+      <button className="btn btn-warning btn-sm" disabled={busy || isPending} onClick={onClaim}>
+        {busy || isPending ? "Claiming..." : "Claim Timeout"}
+      </button>
+      <InlineError message={err} />
+    </div>
+  );
+};
