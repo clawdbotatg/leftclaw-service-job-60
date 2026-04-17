@@ -330,6 +330,25 @@ contract ClawdPokerTest is Test {
         assertEq(clawd.balanceOf(alice) - aliceBalBefore, expectedPayout);
     }
 
+    function test_Timeout_InDealingPhase_Reverts() public {
+        // H-01 regression: claimTimeout in DEALING must revert WrongPhase,
+        // not auto-award the pot to playerA.
+        vm.prank(alice);
+        uint256 gid = poker.createGame(1e18);
+        vm.prank(bob);
+        poker.joinGame(gid);
+        // VRF never fulfilled -> phase stuck in DEALING.
+        vm.warp(block.timestamp + 25 hours);
+
+        vm.prank(bob);
+        vm.expectRevert(ClawdPoker.WrongPhase.selector);
+        poker.claimTimeout(gid);
+
+        vm.prank(alice);
+        vm.expectRevert(ClawdPoker.WrongPhase.selector);
+        poker.claimTimeout(gid);
+    }
+
     function test_Timeout_Cannot_BeforeDeadline() public {
         uint256 buyIn = 500_000e18;
         uint8[] memory emptyC = new uint8[](0);

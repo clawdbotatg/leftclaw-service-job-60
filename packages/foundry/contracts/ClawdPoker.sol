@@ -546,11 +546,41 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
         Game storage g = games[gameId];
         if (g.playerA == address(0)) revert GameNotFound();
         if (msg.sender != g.playerA && msg.sender != g.playerB) revert NotParticipant();
-        if (msg.sender == g.currentBettor) revert InvalidAction();
-        if (g.phase == Phase.COMPLETE || g.phase == Phase.WAITING) revert WrongPhase();
+        // Terminal phases and WAITING (game not yet joined) have no timeout semantics.
+        // DEALING is the dealer's responsibility (VRF + commitDeck) — disallow player
+        // timeouts there so a dealer stall cannot be weaponized into a fixed-winner
+        // path (H-01). A future `rescueStalledDeal` can refund both buy-ins after a
+        // longer grace period; out of scope for this stage.
+        if (
+            g.phase == Phase.COMPLETE || g.phase == Phase.WAITING
+                || g.phase == Phase.DEALING
+        ) revert WrongPhase();
         if (block.timestamp <= g.lastActionTime + TIMEOUT_SECONDS) revert TimeoutNotReached();
 
-        address loser = g.currentBettor;
+        address loser;
+        if (g.phase == Phase.SHOWDOWN) {
+            // H-02: use `handRevealed`, not `currentBettor`, to determine the
+            // stalling party at showdown.
+            bool aRevealed = g.handRevealed[0];
+            bool bRevealed = g.handRevealed[1];
+            if (aRevealed && !bRevealed) {
+                loser = g.playerB;
+            } else if (bRevealed && !aRevealed) {
+                loser = g.playerA;
+            } else {
+                // Neither (or both — impossible since double-reveal auto-settles)
+                // has revealed. Refund both buy-ins with no winner declared.
+                emit TimeoutClaimed(gameId, msg.sender);
+                _refundBoth(g, gameId);
+                return;
+            }
+            if (msg.sender == loser) revert InvalidAction();
+        } else {
+            // Betting phases (PREFLOP/FLOP/TURN/RIVER): currentBettor is the
+            // player who owes an action. Non-currentBettor may claim.
+            if (msg.sender == g.currentBettor) revert InvalidAction();
+            loser = g.currentBettor;
+        }
         emit TimeoutClaimed(gameId, msg.sender);
         _settle(g, gameId, loser);
     }
@@ -609,6 +639,25 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
         _pushClawd(g.playerB, each);
 
         emit GameSplit(gameId, each, burn);
+    }
+
+    /// @dev Refund both players the full on-contract balance attributable to
+    ///      this hand with no burn and no winner. Used when the SHOWDOWN times
+    ///      out and neither player has revealed — the protocol cannot determine
+    ///      a winner from hands alone, so punishing anyone is wrong. Reputation
+    ///      and streak are unchanged (no "win" happened for either side).
+    function _refundBoth(Game storage g, uint256 gameId) internal {
+        uint256 total = g.pot + g.stackA + g.stackB;
+        uint256 halfA = total / 2;
+        uint256 halfB = total - halfA; // remainder (if total is odd) goes to playerB
+        g.stackA = 0;
+        g.stackB = 0;
+        g.pot = 0;
+        g.phase = Phase.COMPLETE;
+        // No winner, no reputation / streak mutation.
+        _pushClawd(g.playerA, halfA);
+        _pushClawd(g.playerB, halfB);
+        emit GameSplit(gameId, halfA, 0);
     }
 
     // ---------------------------------------------------------------------
