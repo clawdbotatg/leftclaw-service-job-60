@@ -1,9 +1,8 @@
-
 import fs from "fs";
 import path from "path";
 import { Address } from "viem";
 import { foundry } from "viem/chains";
-import { AddressComponent } from "~~/app/blockexplorer/_components/AddressComponent";
+import { AddressComponent } from "~~/app/_blockexplorer-disabled/_components/AddressComponent";
 import deployedContracts from "~~/contracts/deployedContracts";
 import { isZeroAddress } from "~~/utils/scaffold-eth/common";
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
