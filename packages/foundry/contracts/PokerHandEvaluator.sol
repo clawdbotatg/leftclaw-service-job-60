@@ -35,8 +35,8 @@ library PokerHandEvaluator {
 
     /// @notice Counts struct -- extracted to keep `evaluate` under the stack limit.
     struct Counts {
-        uint16 rankMask;
-        uint16[4] suitRankMask;
+        uint256 rankMask;
+        uint256[4] suitRankMask;
         uint8[13] rankCount;
         uint8[4] suitCount;
     }
@@ -65,8 +65,8 @@ library PokerHandEvaluator {
             uint8 s = card / 13;
             k.rankCount[r] += 1;
             k.suitCount[s] += 1;
-            k.rankMask |= uint16(1) << uint16(r);
-            k.suitRankMask[s] |= uint16(1) << uint16(r);
+            k.rankMask |= uint256(1) << r;
+            k.suitRankMask[s] |= uint256(1) << r;
         }
     }
 
@@ -81,7 +81,7 @@ library PokerHandEvaluator {
         }
         if (flushSuit == 4) return 0;
 
-        uint16 sm = k.suitRankMask[flushSuit];
+        uint256 sm = k.suitRankMask[flushSuit];
         uint256 shi = _highestStraight(sm);
         if (shi != type(uint256).max) {
             return _encode(CLASS_STRAIGHT_FLUSH, shi, 0, 0, 0, 0);
@@ -115,7 +115,7 @@ library PokerHandEvaluator {
         packed = (quadsRank << 16) | (trips1 << 12) | (trips2 << 8) | (pair1 << 4) | pair2;
     }
 
-    function _evaluateByMult(uint16 rankMask, uint256 mult) private pure returns (uint256) {
+    function _evaluateByMult(uint256 rankMask, uint256 mult) private pure returns (uint256) {
         uint256 quadsRank = (mult >> 16) & 0xF;
         uint256 trips1 = (mult >> 12) & 0xF;
         uint256 trips2 = (mult >> 8) & 0xF;
@@ -185,25 +185,26 @@ library PokerHandEvaluator {
         return (class_ << CLASS_SHIFT) | (a << 16) | (b << 12) | (c << 8) | (d << 4) | e;
     }
 
-    /// @dev Bit `shift` of a uint16, computed without triggering the "implicit uint256 shift on uint16"
-    ///      compiler warning. Callers only ever pass shift in [0, 12].
-    function _bit(uint256 shift) private pure returns (uint16) {
-        return uint16(1) << uint16(shift);
+    /// @dev Bit `shift` of a 16-bit mask, returned as uint256. Callers only ever pass shift in [0, 12].
+    ///      We work in uint256 to avoid both the "implicit uint256 shift on uint16" Solidity warning
+    ///      and the forge-lint "unsafe-typecast" warning on narrowing casts.
+    function _bit(uint256 shift) private pure returns (uint256) {
+        return uint256(1) << shift;
     }
 
     /// @dev Given a 13-bit rank bitmask, return the top rank of the highest 5-in-a-row run, including
     ///      the wheel (A-2-3-4-5 which is ranks 12,0,1,2,3). Returns type(uint256).max if none.
-    function _highestStraight(uint16 mask) private pure returns (uint256) {
+    function _highestStraight(uint256 mask) private pure returns (uint256) {
         // Walk from the top (A=12). Check every window of 5 consecutive ranks.
         for (uint256 i = 12; i >= 4; i--) {
-            uint16 window = _bit(i) | _bit(i - 1) | _bit(i - 2) | _bit(i - 3) | _bit(i - 4);
+            uint256 window = _bit(i) | _bit(i - 1) | _bit(i - 2) | _bit(i - 3) | _bit(i - 4);
             if ((mask & window) == window) {
                 return i;
             }
             if (i == 4) break; // guard against underflow
         }
         // Wheel: A (12), 2 (0), 3 (1), 4 (2), 5 (3)
-        uint16 wheel = _bit(12) | _bit(0) | _bit(1) | _bit(2) | _bit(3);
+        uint256 wheel = _bit(12) | _bit(0) | _bit(1) | _bit(2) | _bit(3);
         if ((mask & wheel) == wheel) {
             // 5-high straight. Rank 3 (=5).
             return 3;
@@ -212,7 +213,7 @@ library PokerHandEvaluator {
     }
 
     /// @dev Extract the top 5 set bits of a 13-bit rank mask. Caller guarantees at least 5 bits set.
-    function _topFiveFromMask(uint16 mask)
+    function _topFiveFromMask(uint256 mask)
         private
         pure
         returns (uint256 a, uint256 b, uint256 c, uint256 d, uint256 e)
@@ -230,7 +231,7 @@ library PokerHandEvaluator {
     }
 
     /// @dev Highest rank in `mask` that is neither `excludeA` nor `excludeB`.
-    function _highestExcluding(uint16 mask, uint256 excludeA, uint256 excludeB) private pure returns (uint256) {
+    function _highestExcluding(uint256 mask, uint256 excludeA, uint256 excludeB) private pure returns (uint256) {
         for (uint256 i = 13; i > 0; i--) {
             uint256 r = i - 1;
             if (r == excludeA || r == excludeB) continue;
@@ -240,7 +241,7 @@ library PokerHandEvaluator {
     }
 
     /// @dev Highest rank in `mask` that is not in {excludeA, excludeB, excludeC}.
-    function _highestExcludingMany(uint16 mask, uint256 excludeA, uint256 excludeB, uint256 excludeC)
+    function _highestExcludingMany(uint256 mask, uint256 excludeA, uint256 excludeB, uint256 excludeC)
         private
         pure
         returns (uint256)
