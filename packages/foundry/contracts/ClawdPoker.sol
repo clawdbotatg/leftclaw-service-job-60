@@ -9,6 +9,15 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {PokerHandEvaluator} from "./PokerHandEvaluator.sol";
 
+/// @dev Minimal interface for OZ `ERC20Burnable` used by the CLAWD token on Base.
+///      CLAWD (0x9f86dB9fc6f7c9408e8Fda3Ff8ce4e78ac7a6b07) is OZ v5, which reverts
+///      `ERC20InvalidReceiver(address(0))` on any `transfer(address(0), ...)`. The
+///      burn path must therefore call `burn(uint256)` directly rather than a
+///      transfer-to-zero.
+interface IClawdBurnable {
+    function burn(uint256 amount) external;
+}
+
 /// @title ClawdPoker
 /// @notice Heads-up Texas Hold'em poker, settled in CLAWD, randomness from Chainlink VRF v2.5.
 /// @dev Design notes (material for Stage 3 auditors)
@@ -48,11 +57,10 @@ import {PokerHandEvaluator} from "./PokerHandEvaluator.sol";
 ///      The dealer is expected to call `dealCommunity` back-to-back. This is a
 ///      known divergence from canonical Hold'em and is flagged for Stage 3.
 ///
-///   4. Burn mechanism. The spec requests burning via transfer-to-zero. CLAWD
-///      is an external ERC-20 whose zero-address behaviour we do not control:
-///      if transfer-to-zero reverts, settlement reverts. This is accepted as a
-///      Stage 3 audit item; alternative burn paths (e.g. ERC20Burnable.burn)
-///      are out of scope for Stage 2.
+///   4. Burn mechanism. CLAWD on Base is OZ v5 and exposes ERC20Burnable's
+///      `burn(uint256)` — but reverts `ERC20InvalidReceiver(0)` on any
+///      `transfer(address(0), ...)`. The burn path calls `burn(uint256)`
+///      directly via `IClawdBurnable`. (Fixed C-01, Stage 4.)
 ///
 ///   5. Tie splitting. On evaluator-tie showdowns the pot is split 50/50 AFTER
 ///      the 15% burn. Wins and streaks do NOT increment for either player; the
@@ -574,8 +582,8 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
         streak[loser] = 0;
 
         if (burn > 0) {
-            // Spec asks for burn-to-zero. Accept that the external token may revert.
-            _pushClawd(address(0), burn);
+            // CLAWD is OZ ERC20Burnable; call burn() directly (C-01 fix).
+            _burnClawd(burn);
         }
         _pushClawd(winner, payout);
 
@@ -595,7 +603,7 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
         // No winner field set; no reputation/streak mutations on a tie.
 
         if (burn > 0) {
-            _pushClawd(address(0), burn);
+            _burnClawd(burn);
         }
         _pushClawd(g.playerA, each);
         _pushClawd(g.playerB, each);
@@ -648,5 +656,13 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
     function _pushClawd(address to, uint256 amt) internal {
         bool ok = CLAWD.transfer(to, amt);
         if (!ok) revert TokenTransferFailed();
+    }
+
+    /// @dev Burn `amt` CLAWD held by this contract via ERC20Burnable.burn(uint256).
+    ///      Real CLAWD (OZ v5) reverts on transfer-to-zero, so we call `burn()`
+    ///      directly. The contract's balance must be >= amt; satisfied by pot
+    ///      accounting since every call site burns less than the pot total.
+    function _burnClawd(uint256 amt) internal {
+        IClawdBurnable(address(CLAWD)).burn(amt);
     }
 }

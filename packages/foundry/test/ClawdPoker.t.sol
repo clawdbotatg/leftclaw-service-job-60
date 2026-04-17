@@ -8,10 +8,13 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {VRFCoordinatorV2_5Mock} from
     "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 
-/// @dev Minimal CLAWD-like ERC20 with open mint + tolerant transfer-to-zero so the
-///      test flow does not get blocked by `_settle`. OpenZeppelin v5 `_transfer` rejects
-///      transfer-to-zero before `_update`, so we shortcut it here by routing zero-address
-///      transfers through `_burn`.
+/// @dev Faithful CLAWD-like ERC20 for tests. The real CLAWD token on Base
+///      (0x9f86dB9fc6f7c9408e8Fda3Ff8ce4e78ac7a6b07) is OpenZeppelin v5
+///      ERC20 + ERC20Burnable:
+///        - `transfer(address(0), ...)` reverts `ERC20InvalidReceiver(0)`
+///        - `burn(uint256)` (callable by any holder) is available
+///      This mock matches that behaviour so the test suite cannot mask the
+///      C-01 burn-to-zero bug again.
 contract MockCLAWD is ERC20 {
     constructor() ERC20("Mock CLAWD", "mCLAWD") {}
 
@@ -19,12 +22,9 @@ contract MockCLAWD is ERC20 {
         _mint(to, amount);
     }
 
-    function transfer(address to, uint256 value) public override returns (bool) {
-        if (to == address(0)) {
-            _burn(msg.sender, value);
-            return true;
-        }
-        return super.transfer(to, value);
+    /// @dev ERC20Burnable.burn(uint256): burn from msg.sender.
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
     }
 }
 
