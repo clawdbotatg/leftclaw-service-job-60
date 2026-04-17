@@ -1,5 +1,8 @@
 {
-  name: 'Scaffold-ETH 2 DApp',
-  description: 'A DApp built with Scaffold-ETH',
-  iconPath: 'logo.svg'
+  "name": "Clawd Poker Royale",
+  "short_name": "Clawd Poker",
+  "description": "Heads-up Texas Hold'em on Base, settled in CLAWD.",
+  "icons": [
+    { "src": "/favicon.png", "sizes": "32x32", "type": "image/png" }
+  ]
 }

@@ -1,83 +1,49 @@
-# 🏗 Scaffold-ETH 2
+# Clawd Poker Royale
 
-<h4 align="center">
-  <a href="https://docs.scaffoldeth.io">Documentation</a> |
-  <a href="https://scaffoldeth.io">Website</a>
-</h4>
+Heads-up Texas Hold'em on Base mainnet, settled in **CLAWD**. Every hand burns 15% of the pot through the CLAWD burn hook — the rest is paid to the winner (or split on showdown ties).
 
-🧪 An open-source, up-to-date toolkit for building decentralized applications (dapps) on the Ethereum blockchain. It's designed to make it easier for developers to create and deploy smart contracts and build user interfaces that interact with those contracts.
+- **Network:** Base mainnet (chainId `8453`)
+- **Contract:** `ClawdPoker` at [`0x10cd417a4197153a90d88cb47f132f5bcd996535`](https://basescan.org/address/0x10cd417a4197153a90d88cb47f132f5bcd996535)
+- **CLAWD token:** [`0xfB6Eac0e8A5175ED0c06B6293E5cf3ecf3bA63Dd`](https://basescan.org/token/0xfB6Eac0e8A5175ED0c06B6293E5cf3ecf3bA63Dd)
+- **Randomness:** Chainlink VRF v2.5
+- **Dealer:** off-chain service that deals cards via commit-reveal and posts community cards
 
-> [!NOTE]
-> 🤖 Scaffold-ETH 2 is AI-ready! It has everything agents need to build on Ethereum. Check `.agents/`, `.claude/`, `.opencode` or `.cursor/` for more info.
+## How a hand works
 
-⚙️ Built using NextJS, RainbowKit, Foundry, Wagmi, Viem, and Typescript.
+1. Either player calls `createGame(buyIn)` after approving CLAWD to the poker contract. Their buy-in is pulled into escrow.
+2. A second player joins with `joinGame(id, buyIn)` — same approve-then-call flow.
+3. The dealer requests VRF randomness, commits 52 card hashes on-chain, and posts `PREFLOP`.
+4. Players `act(id, action, amount)` through **preflop → flop → turn → river** (fold, check, call, raise).
+5. At showdown, each player calls `revealHand(id, c1, c2, salt1, salt2)` with the hole cards and salts the dealer gave them. The contract verifies the commits and evaluates the board.
+6. Winner takes the pot; 15% is burned via `IClawdBurnable.burn`. Timeouts can be claimed if the opponent or dealer stalls.
 
-- ✅ **Contract Hot Reload**: Your frontend auto-adapts to your smart contract as you edit it.
-- 🪝 **[Custom hooks](https://docs.scaffoldeth.io/hooks/)**: Collection of React hooks wrapper around [wagmi](https://wagmi.sh/) to simplify interactions with smart contracts with typescript autocompletion.
-- 🧱 [**Components**](https://docs.scaffoldeth.io/components/): Collection of common web3 components to quickly build your frontend.
-- 🔥 **Burner Wallet & Local Faucet**: Quickly test your application with a burner wallet and local faucet.
-- 🔐 **Integration with Wallet Providers**: Connect to different wallet providers and interact with the Ethereum network.
+## Streak-gated buy-ins
 
-![Debug Contracts tab](https://github.com/scaffold-eth/scaffold-eth-2/assets/55535804/b237af0c-5027-4849-a5c1-2e31495cccb1)
+Wins from `getReputation(addr)` gate max buy-in:
 
-## Requirements
+| Wins | Buy-in cap |
+| ---- | ---------- |
+| 0–2 | 10M CLAWD |
+| 3–5 | 50M CLAWD |
+| 6–9 | 200M CLAWD |
+| 10+ | Unlimited |
 
-Before you begin, you need to install the following tools:
+## Stack
 
-- [Node (>= v20.18.3)](https://nodejs.org/en/download/)
-- Yarn ([v1](https://classic.yarnpkg.com/en/docs/install/) or [v2+](https://yarnpkg.com/getting-started/install))
-- [Git](https://git-scm.com/downloads)
+- **Contracts:** Foundry + OpenZeppelin v5 + Chainlink VRF v2.5
+- **Frontend:** Scaffold-ETH 2, Next.js App Router (static export), RainbowKit, Wagmi, Viem, Tailwind + DaisyUI
+- **Hosting:** IPFS via bgipfs
 
-## Quickstart
+## Building from source
 
-To get started with Scaffold-ETH 2, follow the steps below:
-
-1. Install dependencies if it was skipped in CLI:
-
-```
-cd my-dapp-example
+```bash
 yarn install
+cd packages/nextjs
+NODE_OPTIONS="--require ./polyfill-localstorage.cjs" yarn next build
 ```
 
-2. Run a local network in the first terminal:
+Output lands in `packages/nextjs/out/`. The `polyfill-localstorage.cjs` shim is required because the OG SE2 wallet stack touches `localStorage` at module import time during static export.
 
-```
-yarn chain
-```
+## Dealer runbook
 
-This command starts a local Ethereum network using Foundry. The network runs on your local machine and can be used for testing and development. You can customize the network configuration in `packages/foundry/foundry.toml`.
-
-3. On a second terminal, deploy the test contract:
-
-```
-yarn deploy
-```
-
-This command deploys a test smart contract to the local network. The contract is located in `packages/foundry/contracts` and can be modified to suit your needs. The `yarn deploy` command uses the deploy script located in `packages/foundry/script` to deploy the contract to the network. You can also customize the deploy script.
-
-4. On a third terminal, start your NextJS app:
-
-```
-yarn start
-```
-
-Visit your app on: `http://localhost:3000`. You can interact with your smart contract using the `Debug Contracts` page. You can tweak the app config in `packages/nextjs/scaffold.config.ts`.
-
-Run smart contract test with `yarn foundry:test`
-
-- Edit your smart contracts in `packages/foundry/contracts`
-- Edit your frontend homepage at `packages/nextjs/app/page.tsx`. For guidance on [routing](https://nextjs.org/docs/app/building-your-application/routing/defining-routes) and configuring [pages/layouts](https://nextjs.org/docs/app/building-your-application/routing/pages-and-layouts) checkout the Next.js documentation.
-- Edit your deployment scripts in `packages/foundry/script`
-
-
-## Documentation
-
-Visit our [docs](https://docs.scaffoldeth.io) to learn how to start building with Scaffold-ETH 2.
-
-To know more about its features, check out our [website](https://scaffoldeth.io).
-
-## Contributing to Scaffold-ETH 2
-
-We welcome contributions to Scaffold-ETH 2!
-
-Please see [CONTRIBUTING.MD](https://github.com/scaffold-eth/scaffold-eth-2/blob/main/CONTRIBUTING.md) for more information and guidelines for contributing to Scaffold-ETH 2.
+A separate off-chain dealer service is responsible for VRF requests, commit bundles, and posting community cards. Because it's not part of this frontend, see the repo's on-chain events (`GameJoined`, `DealerDealt`, `PhaseAdvanced`, `ShowdownRequired`, `HandCompleted`) and the dealer onboarding runbook in prior commits for the full sequence.
