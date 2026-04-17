@@ -4,11 +4,11 @@ import { Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Address } from "@scaffold-ui/components";
-import { formatUnits } from "viem";
 import { useAccount } from "wagmi";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { ActionBar } from "~~/components/poker/ActionBar";
 import { PokerCard } from "~~/components/poker/Card";
+import { ClawdAmount } from "~~/components/poker/ClawdAmount";
 import { ConnectGate } from "~~/components/poker/ConnectGate";
 import { CountdownTimer, hasTimedOut } from "~~/components/poker/CountdownTimer";
 import { PhaseBadge, phaseName } from "~~/components/poker/PhaseBadge";
@@ -62,7 +62,7 @@ const PlayerSeat = ({
       </div>
       <Reputation address={address} compact />
       <div className="mt-2 text-sm">
-        Stack: <span className="font-semibold">{formatUnits(stack, 18)}</span> CLAWD
+        Stack: <ClawdAmount value={stack} />
       </div>
       <div className="flex gap-1 mt-2">
         {showCards && holeCards ? (
@@ -126,11 +126,15 @@ const CompleteCard = ({ gameId, winner }: { gameId: bigint; winner: string }) =>
               <div className="grid grid-cols-2 gap-6 mt-3">
                 <div>
                   <div className="text-xs opacity-60">Payout</div>
-                  <div className="font-bold">{formatUnits(summary.payout, 18)} CLAWD</div>
+                  <div className="font-bold">
+                    <ClawdAmount value={summary.payout} />
+                  </div>
                 </div>
                 <div>
                   <div className="text-xs opacity-60">Burned</div>
-                  <div className="font-bold">{formatUnits(summary.burn, 18)} CLAWD</div>
+                  <div className="font-bold">
+                    <ClawdAmount value={summary.burn} />
+                  </div>
                 </div>
               </div>
             </>
@@ -140,11 +144,15 @@ const CompleteCard = ({ gameId, winner }: { gameId: bigint; winner: string }) =>
               <div className="grid grid-cols-2 gap-6 mt-3">
                 <div>
                   <div className="text-xs opacity-60">Per player</div>
-                  <div className="font-bold">{formatUnits(summary.perPlayer, 18)} CLAWD</div>
+                  <div className="font-bold">
+                    <ClawdAmount value={summary.perPlayer} />
+                  </div>
                 </div>
                 <div>
                   <div className="text-xs opacity-60">Burned</div>
-                  <div className="font-bold">{formatUnits(summary.burn, 18)} CLAWD</div>
+                  <div className="font-bold">
+                    <ClawdAmount value={summary.burn} />
+                  </div>
                 </div>
               </div>
             </>
@@ -310,7 +318,7 @@ const GameView = ({ gameId }: { gameId: bigint }) => {
           <div className="text-center">
             <div className="text-xs uppercase tracking-widest text-emerald-100/80">Pot</div>
             <div className="text-3xl font-black text-white drop-shadow">
-              {formatUnits(pot, 18)} <span className="text-base font-normal opacity-80">CLAWD</span>
+              <ClawdAmount value={pot} variant="stacked" />
             </div>
           </div>
           <div className="flex gap-2 md:gap-3">

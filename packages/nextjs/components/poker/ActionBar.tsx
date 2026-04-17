@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatUnits, parseUnits } from "viem";
+import { ClawdAmount } from "~~/components/poker/ClawdAmount";
 import { InlineError } from "~~/components/poker/InlineError";
 import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 import { parsePokerError } from "~~/utils/parseError";
@@ -59,10 +60,10 @@ export const ActionBar = ({ gameId, currentBet, myStack, committedThisRound = 0n
       <div className="flex items-center justify-between mb-3">
         <div className="text-sm opacity-70">{isMyTurn ? "Your turn" : "Waiting for opponent"}</div>
         <div className="text-xs opacity-60">
-          Current bet: <span className="font-semibold">{formatUnits(currentBet, 18)} CLAWD</span>
+          Current bet: <ClawdAmount value={currentBet} />
           {owed > 0n && isMyTurn && (
             <span className="ml-2">
-              · To call: <span className="font-semibold">{formatUnits(owed, 18)}</span>
+              · To call: <ClawdAmount value={owed} />
             </span>
           )}
         </div>

@@ -4,10 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { Address } from "@scaffold-ui/components";
 import type { NextPage } from "next";
-import { formatUnits } from "viem";
 import { useAccount } from "wagmi";
 import { FireIcon } from "@heroicons/react/24/outline";
 import { BuyInInput, parseBuyIn } from "~~/components/poker/BuyInInput";
+import { ClawdAmount } from "~~/components/poker/ClawdAmount";
 import { ConnectGate } from "~~/components/poker/ConnectGate";
 import { InlineError } from "~~/components/poker/InlineError";
 import { Reputation } from "~~/components/poker/Reputation";
@@ -149,7 +149,9 @@ const OpenGameRow = ({ gameId }: OpenGameRowProps) => {
           <Reputation address={playerA} compact />
         </div>
       </td>
-      <td className="font-semibold">{formatUnits(buyIn, 18)} CLAWD</td>
+      <td>
+        <ClawdAmount value={buyIn} />
+      </td>
       <td className="min-w-40">
         {isMyGame ? (
           <span className="badge badge-ghost">your game — waiting</span>
