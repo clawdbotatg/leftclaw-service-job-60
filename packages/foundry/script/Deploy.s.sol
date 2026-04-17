@@ -2,23 +2,27 @@
 pragma solidity ^0.8.19;
 
 import "./DeployHelpers.s.sol";
+import { DeployClawdPoker } from "./DeployClawdPoker.s.sol";
 
 /**
- * @notice Main deployment script for all contracts
- * @dev Run this when you want to deploy multiple contracts at once
+ * @notice Main deployment script.
  *
- * Example: yarn deploy # runs this script (without `--file` flag)
+ * For Base mainnet deploy via SE2 wrapper:
+ *   VRF_SUBSCRIPTION_ID=<subId> yarn deploy --file DeployClawdPoker.s.sol --network base
  *
- * Stage 2 note: ClawdPoker deployment is intentionally deferred to Stage 5.
- * It requires constructor args (Base mainnet VRF coordinator, subscription id,
- * key hash, CLAWD token address) that must come from environment config.
- * A dedicated DeployClawdPoker.s.sol will be added in Stage 5.
+ * Or raw forge script (ad-hoc deploy path used by Stage 5):
+ *   cd packages/foundry
+ *   set -a && source .env && set +a
+ *   VRF_SUBSCRIPTION_ID=<subId> forge script script/DeployClawdPoker.s.sol \
+ *       --rpc-url base --broadcast --private-key $PRIVATE_KEY --ffi
+ *
+ * Running `yarn deploy` with no --file falls back to this script, which in
+ * turn delegates to DeployClawdPoker. Keep this shim so the SE2 convention
+ * (yarn deploy with no args = "deploy everything") keeps working.
  */
 contract DeployScript is ScaffoldETHDeploy {
-    function run() external pure {
-        // TODO(Stage 5): instantiate and run DeployClawdPoker once constructor args are wired.
-        //
-        // DeployClawdPoker deployClawdPoker = new DeployClawdPoker();
-        // deployClawdPoker.run();
+    function run() external {
+        DeployClawdPoker d = new DeployClawdPoker();
+        d.run();
     }
 }

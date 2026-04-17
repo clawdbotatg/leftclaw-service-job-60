@@ -4,6 +4,1186 @@
  */
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 
-const deployedContracts = {} as const;
+const deployedContracts = {
+  8453: {
+    ClawdPoker: {
+      address: "0x10cd417a4197153a90d88cb47f132f5bcd996535",
+      abi: [
+        {
+          type: "constructor",
+          inputs: [
+            {
+              name: "vrfCoordinator",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "subId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "keyHash",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+            {
+              name: "clawdToken",
+              type: "address",
+              internalType: "contract IERC20",
+            },
+          ],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "BURN_BPS",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "CALLBACK_GAS_LIMIT",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint32",
+              internalType: "uint32",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "CLAWD",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "address",
+              internalType: "contract IERC20",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "KEY_HASH",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "REQUEST_CONFIRMATIONS",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint16",
+              internalType: "uint16",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "SUBSCRIPTION_ID",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "TIMEOUT_SECONDS",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "acceptOwnership",
+          inputs: [],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "act",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "action",
+              type: "uint8",
+              internalType: "uint8",
+            },
+            {
+              name: "amount",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "cardCommits",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "claimTimeout",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "commitDeck",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "commits",
+              type: "bytes32[52]",
+              internalType: "bytes32[52]",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "createGame",
+          inputs: [
+            {
+              name: "buyIn",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "dealCommunity",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "cards",
+              type: "uint8[]",
+              internalType: "uint8[]",
+            },
+            {
+              name: "salts",
+              type: "bytes32[]",
+              internalType: "bytes32[]",
+            },
+            {
+              name: "deckIndices",
+              type: "uint8[]",
+              internalType: "uint8[]",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "gameIds",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "games",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "playerA",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "playerB",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "buyIn",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "stackA",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "stackB",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "pot",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "deckHash",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+            {
+              name: "phase",
+              type: "uint8",
+              internalType: "enum ClawdPoker.Phase",
+            },
+            {
+              name: "currentBettor",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "currentBet",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "lastActionTime",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "winner",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "getGame",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "tuple",
+              internalType: "struct ClawdPoker.Game",
+              components: [
+                {
+                  name: "gameId",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "playerA",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
+                  name: "playerB",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
+                  name: "buyIn",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "stackA",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "stackB",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "pot",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "deckHash",
+                  type: "bytes32",
+                  internalType: "bytes32",
+                },
+                {
+                  name: "communityCards",
+                  type: "uint8[5]",
+                  internalType: "uint8[5]",
+                },
+                {
+                  name: "handRevealed",
+                  type: "bool[2]",
+                  internalType: "bool[2]",
+                },
+                {
+                  name: "holeCardsA",
+                  type: "uint8[2]",
+                  internalType: "uint8[2]",
+                },
+                {
+                  name: "holeCardsB",
+                  type: "uint8[2]",
+                  internalType: "uint8[2]",
+                },
+                {
+                  name: "phase",
+                  type: "uint8",
+                  internalType: "enum ClawdPoker.Phase",
+                },
+                {
+                  name: "currentBettor",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
+                  name: "currentBet",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "lastActionTime",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "winner",
+                  type: "address",
+                  internalType: "address",
+                },
+              ],
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "getReputation",
+          inputs: [
+            {
+              name: "player",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "wins",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "currentStreak",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "getVrfResult",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "joinGame",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "nextGameId",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "openGames",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256[]",
+              internalType: "uint256[]",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "owner",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "rawFulfillRandomWords",
+          inputs: [
+            {
+              name: "requestId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "randomWords",
+              type: "uint256[]",
+              internalType: "uint256[]",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "reputation",
+          inputs: [
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "revealHand",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "card1",
+              type: "uint8",
+              internalType: "uint8",
+            },
+            {
+              name: "card2",
+              type: "uint8",
+              internalType: "uint8",
+            },
+            {
+              name: "salt1",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+            {
+              name: "salt2",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "s_vrfCoordinator",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "address",
+              internalType: "contract IVRFCoordinatorV2Plus",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "setCoordinator",
+          inputs: [
+            {
+              name: "_vrfCoordinator",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "streak",
+          inputs: [
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "transferOwnership",
+          inputs: [
+            {
+              name: "to",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "vrfRequestToGame",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "event",
+          name: "Action",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "actor",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "action",
+              type: "uint8",
+              indexed: false,
+              internalType: "uint8",
+            },
+            {
+              name: "amount",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "CommunityDealt",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "cards",
+              type: "uint8[]",
+              indexed: false,
+              internalType: "uint8[]",
+            },
+            {
+              name: "phase",
+              type: "uint8",
+              indexed: false,
+              internalType: "enum ClawdPoker.Phase",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "CoordinatorSet",
+          inputs: [
+            {
+              name: "vrfCoordinator",
+              type: "address",
+              indexed: false,
+              internalType: "address",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "DeckCommitted",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "deckHash",
+              type: "bytes32",
+              indexed: false,
+              internalType: "bytes32",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "GameComplete",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "winner",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "payout",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "burn",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "GameCreated",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "playerA",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "buyIn",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "GameJoined",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "playerB",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "GameSplit",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "perPlayer",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "burn",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "HandRevealed",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "player",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "card1",
+              type: "uint8",
+              indexed: false,
+              internalType: "uint8",
+            },
+            {
+              name: "card2",
+              type: "uint8",
+              indexed: false,
+              internalType: "uint8",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "OwnershipTransferRequested",
+          inputs: [
+            {
+              name: "from",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "to",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "OwnershipTransferred",
+          inputs: [
+            {
+              name: "from",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "to",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "PhaseAdvanced",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "newPhase",
+              type: "uint8",
+              indexed: false,
+              internalType: "enum ClawdPoker.Phase",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "TimeoutClaimed",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "claimant",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "VrfFulfilled",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "seed",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "VrfRequested",
+          inputs: [
+            {
+              name: "gameId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "requestId",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "error",
+          name: "AlreadyJoined",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "BadCommunityCount",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "BadRevealIndex",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "BuyInTooLarge",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "CannotJoinOwnGame",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "CardAlreadyUsed",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "CommitMismatch",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "DeckAlreadyCommitted",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "DeckNotReady",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "GameNotFound",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "IndexAlreadyRevealed",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "InsufficientStack",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "InvalidAction",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "InvalidRaise",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "NotParticipant",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "NotYourTurn",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "OnlyCoordinatorCanFulfill",
+          inputs: [
+            {
+              name: "have",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "want",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+        },
+        {
+          type: "error",
+          name: "OnlyOwnerOrCoordinator",
+          inputs: [
+            {
+              name: "have",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "owner",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "coordinator",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+        },
+        {
+          type: "error",
+          name: "TimeoutNotReached",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "TokenTransferFailed",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "WrongPhase",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ZeroAddress",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ZeroBuyIn",
+          inputs: [],
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 44834848,
+    },
+  },
+} as const;
 
 export default deployedContracts satisfies GenericContractsDeclaration;
