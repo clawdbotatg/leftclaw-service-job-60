@@ -291,8 +291,18 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
     }
 
     /// @notice Owner (dealer) pins the 52 per-card hiding commits for the game.
-    ///         Each commit MUST equal keccak256(abi.encodePacked(salt_i, card_i)) where card_i is
-    ///         a unique value in [0,51].
+    ///         Each commit MUST equal keccak256(abi.encodePacked(salt_i, card_i))
+    ///         where card_i is a unique value in [0,51] and salt_i has >=128 bits
+    ///         of entropy (CSPRNG output — see dealer runbook).
+    ///
+    /// @dev M-04: salt entropy is a dealer obligation. Low-entropy salts (e.g.
+    ///      keccak256(gameId, i)) are brute-forceable in O(52 * 2^bits) and allow
+    ///      an observer to recover the committed card before reveal. The contract
+    ///      cannot verify entropy on-chain; dealers MUST use CSPRNG-derived salts
+    ///      or a high-entropy root (>=128 bits) with per-card derivation.
+    /// @dev M-05: every commit slot MUST be non-zero. Zero commits indicate the
+    ///      dealer forgot to populate a slot; rather than letting the game
+    ///      silently brick on later reveal, fail-fast here.
     function commitDeck(uint256 gameId, bytes32[52] calldata commits) external onlyOwner {
         Game storage g = games[gameId];
         if (g.phase != Phase.DEALING) revert WrongPhase();
@@ -300,6 +310,7 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
         if (cardCommits[gameId][0] != bytes32(0)) revert DeckAlreadyCommitted();
 
         for (uint256 i = 0; i < 52; i++) {
+            if (commits[i] == bytes32(0)) revert CommitMismatch(); // M-05: no zero slots
             cardCommits[gameId][i] = commits[i];
         }
         g.phase = Phase.PREFLOP;

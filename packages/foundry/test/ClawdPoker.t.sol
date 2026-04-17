@@ -737,6 +737,39 @@ contract ClawdPokerTest is Test {
     //                       6. Owner-only on commit/deal
     // ------------------------------------------------------------------
 
+    function test_CommitDeck_ZeroSlot_Reverts() public {
+        // M-05 regression: a zero commit in any slot must revert at commit
+        // time rather than silently bricking later reveals.
+        vm.prank(alice);
+        uint256 gameId = poker.createGame(1e18);
+        vm.prank(bob);
+        poker.joinGame(gameId);
+        uint256[] memory words = new uint256[](1);
+        words[0] = 0xFADE;
+        uint256 reqId = _nextExpectedVrfRequestId++;
+        vm.prank(dealer);
+        vrf.fulfillRandomWordsWithOverride(reqId, address(poker), words);
+
+        // Build a valid commit array, then zero out slot 37.
+        bytes32[52] memory commits;
+        for (uint256 i = 0; i < 52; i++) {
+            commits[i] = keccak256(abi.encodePacked(bytes32(uint256(i + 1))));
+        }
+        commits[37] = bytes32(0);
+
+        vm.prank(dealer);
+        vm.expectRevert(ClawdPoker.CommitMismatch.selector);
+        poker.commitDeck(gameId, commits);
+
+        // Also reject zero at slot 0 (would otherwise pass the
+        // already-committed sentinel but leave the game in a fragile state).
+        commits[37] = keccak256("restore");
+        commits[0] = bytes32(0);
+        vm.prank(dealer);
+        vm.expectRevert(ClawdPoker.CommitMismatch.selector);
+        poker.commitDeck(gameId, commits);
+    }
+
     function test_OnlyOwner_CommitDeck() public {
         // Start a game, get to DEALING+deckHash state, then non-owner tries commitDeck.
         vm.prank(alice);
