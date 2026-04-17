@@ -462,7 +462,13 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
         }
 
         for (uint256 i = 0; i < expected; i++) {
-            _verifyAndMarkReveal(gameId, deckIndices[i], cards[i], salts[i]);
+            // M-01: deck indices 4..7 are reserved for hole cards
+            //   playerA = 4, 5   playerB = 6, 7
+            // Reject the dealer claiming a reserved index for community so a
+            // malicious / buggy dealer cannot lock a player out of revealHand.
+            uint8 idx = deckIndices[i];
+            if (idx == 4 || idx == 5 || idx == 6 || idx == 7) revert BadRevealIndex();
+            _verifyAndMarkReveal(gameId, idx, cards[i], salts[i]);
             g.communityCards[writeStart + i] = cards[i];
         }
 

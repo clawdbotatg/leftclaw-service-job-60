@@ -612,6 +612,39 @@ contract ClawdPokerTest is Test {
         poker.dealCommunity(gameId, single, singleSalt, singleIdx);
     }
 
+    function test_DealCommunity_RejectsReservedHoleIndices() public {
+        // M-01 regression: dealCommunity must reject deck indices 4,5,6,7
+        // (reserved for hole cards). Before the fix, a malicious dealer
+        // could claim those slots for community cards and lock the matching
+        // player out of revealHand.
+        uint8[] memory cards = new uint8[](3);
+        uint8[] memory deckIdx = new uint8[](3);
+        bytes32[] memory salts = new bytes32[](3);
+        cards[0] = 10; deckIdx[0] = 4; salts[0] = keccak256("r0"); // RESERVED
+        cards[1] = 11; deckIdx[1] = 1; salts[1] = keccak256("r1");
+        cards[2] = 12; deckIdx[2] = 2; salts[2] = keccak256("r2");
+
+        uint256 gameId = _startGameAndCommit(alice, bob, 1e18, cards, deckIdx, salts);
+
+        vm.prank(dealer);
+        vm.expectRevert(ClawdPoker.BadRevealIndex.selector);
+        poker.dealCommunity(gameId, cards, salts, deckIdx);
+
+        // Try index 5, 6, 7 too — all must revert. Put the reserved index at
+        // slot 0 so the reserved-check trips before any commit comparison.
+        for (uint8 reserved = 5; reserved <= 7; reserved++) {
+            uint8[] memory flopCards = new uint8[](3);
+            uint8[] memory flopIdx = new uint8[](3);
+            bytes32[] memory flopSalts = new bytes32[](3);
+            flopCards[0] = 20 + reserved; flopIdx[0] = reserved; flopSalts[0] = keccak256(abi.encodePacked("rx", reserved));
+            flopCards[1] = 30; flopIdx[1] = 1; flopSalts[1] = keccak256("safe0");
+            flopCards[2] = 31; flopIdx[2] = 2; flopSalts[2] = keccak256("safe1");
+            vm.prank(dealer);
+            vm.expectRevert(ClawdPoker.BadRevealIndex.selector);
+            poker.dealCommunity(gameId, flopCards, flopSalts, flopIdx);
+        }
+    }
+
     function test_Commit_ReusedCardValueReverts() public {
         // Flop uses card value 5 at index 0; turn tries to reveal card value 5 again at a different index.
         uint8[] memory cards = new uint8[](4);
