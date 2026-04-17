@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Address } from "@scaffold-ui/components";
 import { formatUnits } from "viem";
 import { useAccount } from "wagmi";
@@ -370,9 +370,9 @@ const GameView = ({ gameId }: { gameId: bigint }) => {
   );
 };
 
-export const GameClient = () => {
-  const params = useParams<{ id: string }>();
-  const raw = params?.id;
+const GameClientInner = () => {
+  const searchParams = useSearchParams();
+  const raw = searchParams?.get("id");
   const gameId = useMemo(() => {
     if (!raw) return null;
     try {
@@ -385,10 +385,22 @@ export const GameClient = () => {
   return (
     <ConnectGate>
       {gameId === null ? (
-        <div className="container mx-auto p-8 text-center opacity-60">Invalid game id.</div>
+        <div className="container mx-auto p-8 text-center opacity-60">
+          No game id provided. Return to the{" "}
+          <Link href="/" className="link">
+            lobby
+          </Link>{" "}
+          to pick a table.
+        </div>
       ) : (
         <GameView gameId={gameId} />
       )}
     </ConnectGate>
   );
 };
+
+export const GameClient = () => (
+  <Suspense fallback={<div className="container mx-auto p-8 text-center opacity-60">Loading…</div>}>
+    <GameClientInner />
+  </Suspense>
+);

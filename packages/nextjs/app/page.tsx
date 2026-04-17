@@ -168,7 +168,7 @@ const OpenGameRow = ({ gameId }: OpenGameRowProps) => {
             onClick={async () => {
               const ok = await onJoin();
               if (ok && typeof window !== "undefined") {
-                window.location.href = `/game/${gameId.toString()}`;
+                window.location.href = `/game/?id=${gameId.toString()}`;
               }
             }}
           >
@@ -290,7 +290,7 @@ const HistoryRow = ({ gameId, me }: { gameId: bigint; me: string }) => {
         <span className="badge badge-outline">{phaseNames[phase] ?? phase}</span>
       </td>
       <td>
-        <Link href={`/game/${gameId.toString()}`} className="btn btn-xs btn-ghost">
+        <Link href={`/game/?id=${gameId.toString()}`} className="btn btn-xs btn-ghost">
           open
         </Link>
       </td>
