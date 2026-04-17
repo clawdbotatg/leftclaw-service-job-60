@@ -661,9 +661,12 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
         g.stackA = 0;
         g.stackB = 0;
 
-        uint256 burn = (total * BURN_BPS) / BPS_DENOM;
-        uint256 each = (total - burn) / 2;
-        // If (total-burn) is odd, the odd wei stays in the contract. Acceptable (effectively extra burn).
+        uint256 baseBurn = (total * BURN_BPS) / BPS_DENOM;
+        uint256 distributable = total - baseBurn;
+        uint256 each = distributable / 2;
+        // M-03: any rounding remainder from the /2 (1 wei when distributable is
+        // odd) is folded into the burn instead of stranding it on the contract.
+        uint256 burn = baseBurn + (distributable - 2 * each);
         g.pot = 0;
         g.phase = Phase.COMPLETE;
         // No winner field set; no reputation/streak mutations on a tie.

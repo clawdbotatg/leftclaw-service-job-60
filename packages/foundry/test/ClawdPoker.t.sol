@@ -444,6 +444,63 @@ contract ClawdPokerTest is Test {
         assertEq(poker.reputation(bob), 0);
     }
 
+    function test_Tie_OddRemainder_FoldedIntoBurn() public {
+        // M-03 regression: when (total - burn) is odd at tie-split, the odd
+        // wei previously stayed stranded in the contract. After the fix, the
+        // remainder is folded into the burn. We verify:
+        //   - each player receives `each = distributable / 2`
+        //   - the contract's CLAWD balance returns to zero after settlement
+        //   - totalSupply drops by `burn + remainder`
+        uint256 buyIn = 10; // total = 20, burn = 3, distributable = 17, each = 8, remainder = 1
+        uint256 total = 2 * buyIn;
+        uint256 baseBurn = (total * 1500) / 10_000; // 3
+        uint256 distributable = total - baseBurn; // 17
+        uint256 each = distributable / 2; // 8
+        uint256 remainder = distributable - 2 * each; // 1
+        uint256 expectedBurn = baseBurn + remainder; // 4
+
+        // Community: AAAAK — both players play the board.
+        uint8[] memory cards = new uint8[](9);
+        uint8[] memory deckIdx = new uint8[](9);
+        bytes32[] memory salts = new bytes32[](9);
+        cards[0] = 12; deckIdx[0] = 0; salts[0] = keccak256("t0"); // Ah
+        cards[1] = 25; deckIdx[1] = 1; salts[1] = keccak256("t1"); // As
+        cards[2] = 38; deckIdx[2] = 2; salts[2] = keccak256("t2"); // Ad
+        cards[3] = 51; deckIdx[3] = 3; salts[3] = keccak256("t3"); // Ac (turn)
+        cards[4] = 11; deckIdx[4] = 10; salts[4] = keccak256("t4"); // Kh (river)
+        // Alice holes — pocket 3s (Hhole) — 3h=1, 3d=27. Both below K, she plays AAAA+K.
+        cards[5] = 1; deckIdx[5] = 4; salts[5] = keccak256("t5");
+        cards[6] = 27; deckIdx[6] = 5; salts[6] = keccak256("t6");
+        // Bob holes — 4h=2, 4d=28. Also below K. He plays AAAA+K too.
+        cards[7] = 2; deckIdx[7] = 6; salts[7] = keccak256("t7");
+        cards[8] = 28; deckIdx[8] = 7; salts[8] = keccak256("t8");
+
+        uint256 gameId = _startGameAndCommit(alice, bob, buyIn, cards, deckIdx, salts);
+        _checkDownToShowdown(gameId, cards, deckIdx, salts);
+
+        uint256 supplyBefore = clawd.totalSupply();
+        uint256 contractBalBefore = clawd.balanceOf(address(poker));
+        uint256 aliceBalBefore = clawd.balanceOf(alice);
+        uint256 bobBalBefore = clawd.balanceOf(bob);
+
+        vm.prank(alice);
+        poker.revealHand(gameId, cards[5], cards[6], salts[5], salts[6]);
+        vm.prank(bob);
+        poker.revealHand(gameId, cards[7], cards[8], salts[7], salts[8]);
+
+        ClawdPoker.Game memory gAfter = poker.getGame(gameId);
+        assertEq(uint8(gAfter.phase), uint8(ClawdPoker.Phase.COMPLETE));
+        assertEq(gAfter.winner, address(0), "tie -> no winner");
+
+        // Each player receives `each`.
+        assertEq(clawd.balanceOf(alice) - aliceBalBefore, each);
+        assertEq(clawd.balanceOf(bob) - bobBalBefore, each);
+        // Contract balance returns to its pre-settlement balance (no strand).
+        assertEq(clawd.balanceOf(address(poker)), contractBalBefore - total);
+        // totalSupply drops by burn + remainder.
+        assertEq(clawd.totalSupply(), supplyBefore - expectedBurn);
+    }
+
     function test_PartialCallAllIn_ShortStackCallsAndAdvances() public {
         // H-03 regression: a player whose remaining stack is SMALLER than the
         // outstanding call delta must be able to go all-in for their stack.
