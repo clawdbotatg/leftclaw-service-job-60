@@ -189,6 +189,13 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
     ///      short-stacked caller pays `min(stack, currentBet - committed)`.
     mapping(uint256 => mapping(address => uint256)) private _committedThisRound;
 
+    /// @dev True when a betting round just closed and the dealer is the
+    ///      next party who must act (via `dealCommunity`). Cleared when the
+    ///      dealer deals. Used by `claimTimeout` to distinguish player stall
+    ///      (penalize currentBettor) from dealer stall (refund both with no
+    ///      burn, no winner). M-06 fix.
+    mapping(uint256 => bool) private _awaitingDealerReveal;
+
     // ---------------------------------------------------------------------
     //                             Constructor
     // ---------------------------------------------------------------------
@@ -437,13 +444,17 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
             return;
         }
         // Otherwise we're mid-hand: the dealer must post community cards next.
+        // M-06: mark the game as waiting on the dealer so claimTimeout refunds
+        // both players (rather than penalizing a player) if the dealer stalls
+        // between streets.
+        _awaitingDealerReveal[gameId] = true;
         // Reset currentBet and seed first-actor-of-next-street per canonical
         // heads-up Hold'em (M-02 fix):
         //   - Pre-flop: BB (playerB) acts first.
         //   - Post-flop (flop/turn/river): BB (playerB) still acts first.
-        // i.e., the BB acts first on every street in heads-up. The ternary below
-        // collapses to "always playerB", but is written explicitly to document
-        // intent and to give a stable hook if positional rules ever diverge.
+        // The BB acts first on every street in heads-up. Written as an if/else
+        // to document intent and to give a stable hook if positional rules
+        // ever diverge.
         g.currentBet = 0;
         g.currentBettor = g.playerB;
         // Reset per-round commitments used by the partial-call-all-in logic.
@@ -485,6 +496,7 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
 
         g.phase = next;
         g.lastActionTime = block.timestamp;
+        _awaitingDealerReveal[gameId] = false; // M-06: dealer acted, back on players
         emit CommunityDealt(gameId, cards, next);
         emit PhaseAdvanced(gameId, next);
     }
@@ -622,9 +634,18 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
                 return;
             }
             if (msg.sender == loser) revert InvalidAction();
+        } else if (_awaitingDealerReveal[gameId]) {
+            // M-06: between streets the game is waiting on the dealer to call
+            // dealCommunity. A timeout here is a dealer stall, not a player
+            // stall — refund both players with no burn and no winner rather
+            // than declaring whoever is `currentBettor` the loser.
+            emit TimeoutClaimed(gameId, msg.sender);
+            _refundBoth(g, gameId);
+            return;
         } else {
-            // Betting phases (PREFLOP/FLOP/TURN/RIVER): currentBettor is the
-            // player who owes an action. Non-currentBettor may claim.
+            // Betting phases (PREFLOP/FLOP/TURN/RIVER) with players still owing
+            // an action: currentBettor is the player who owes. Non-currentBettor
+            // may claim.
             if (msg.sender == g.currentBettor) revert InvalidAction();
             loser = g.currentBettor;
         }

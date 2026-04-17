@@ -548,6 +548,42 @@ contract ClawdPokerTest is Test {
         assertEq(uint8(gAfter.phase), uint8(ClawdPoker.Phase.PREFLOP));
     }
 
+    function test_Timeout_DealerStallBetweenStreets_RefundsBoth() public {
+        // M-06 regression: after a betting round closes, the game waits on
+        // the dealer to call dealCommunity. If the dealer stalls, claimTimeout
+        // must refund both players (no burn, no winner) — not blame the
+        // player who happens to be currentBettor at that moment.
+        uint256 buyIn = 1_000_000e18;
+        uint8[] memory empty = new uint8[](0);
+        uint8[] memory emptyI = new uint8[](0);
+        bytes32[] memory emptyS = new bytes32[](0);
+        uint256 gameId = _startGameAndCommit(alice, bob, buyIn, empty, emptyI, emptyS);
+
+        // Both players check preflop -> _advanceStreet flags
+        // _awaitingDealerReveal. Phase still PREFLOP until dealer deals flop.
+        vm.prank(bob); poker.act(gameId, 1, 0);
+        vm.prank(alice); poker.act(gameId, 1, 0);
+
+        uint256 aliceBalBefore = clawd.balanceOf(alice);
+        uint256 bobBalBefore = clawd.balanceOf(bob);
+        uint256 supplyBefore = clawd.totalSupply();
+
+        // Dealer stalls > 24h; alice claims timeout.
+        vm.warp(block.timestamp + 25 hours);
+        vm.prank(alice);
+        poker.claimTimeout(gameId);
+
+        // Both players refunded, no burn, no winner, reputations unchanged.
+        assertEq(clawd.balanceOf(alice) - aliceBalBefore, buyIn);
+        assertEq(clawd.balanceOf(bob) - bobBalBefore, buyIn);
+        assertEq(clawd.totalSupply(), supplyBefore);
+        ClawdPoker.Game memory gAfter = poker.getGame(gameId);
+        assertEq(gAfter.winner, address(0));
+        assertEq(uint8(gAfter.phase), uint8(ClawdPoker.Phase.COMPLETE));
+        assertEq(poker.reputation(alice), 0);
+        assertEq(poker.reputation(bob), 0);
+    }
+
     function test_Timeout_InDealingPhase_Reverts() public {
         // H-01 regression: claimTimeout in DEALING must revert WrongPhase,
         // not auto-award the pot to playerA.
