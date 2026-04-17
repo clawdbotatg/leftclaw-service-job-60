@@ -33,118 +33,135 @@ library PokerHandEvaluator {
     // Top 4 bits are the class, giving plenty of headroom over the 20-bit kicker block.
     uint256 internal constant CLASS_SHIFT = 20;
 
+    /// @notice Counts struct -- extracted to keep `evaluate` under the stack limit.
+    struct Counts {
+        uint16 rankMask;
+        uint16[4] suitRankMask;
+        uint8[13] rankCount;
+        uint8[4] suitCount;
+    }
+
     /// @notice Evaluate the best 5-card hand out of 7 cards.
     /// @param cards 7 cards, each in [0,51]. Duplicates must not be passed in.
     /// @return rank An opaque rank score; larger is stronger.
     function evaluate(uint8[7] memory cards) internal pure returns (uint256 rank) {
-        // Count per-rank occurrences and per-suit occurrences.
-        uint8[13] memory rankCount;
-        uint8[4] memory suitCount;
-        // Bitmask of ranks present anywhere (used for straight detection).
-        uint16 rankMask;
-        // Per-suit rank bitmask (used for flush / straight-flush detection).
-        uint16[4] memory suitRankMask;
-
-        for (uint256 i = 0; i < 7; i++) {
-            uint8 c = cards[i];
-            // Defensive: if a caller passes >= 52 the behaviour is still defined
-            // because modular arithmetic is used throughout; but we keep it simple.
-            uint8 r = c % 13;
-            uint8 s = c / 13;
-            rankCount[r] += 1;
-            suitCount[s] += 1;
-            rankMask |= uint16(1) << r;
-            suitRankMask[s] |= uint16(1) << r;
-        }
+        Counts memory k = _count(cards);
 
         // ---------- Straight-flush / flush detection ----------
-        uint256 flushSuit = 4; // 4 sentinel for "no flush"
+        uint256 flushResult = _evaluateFlush(k);
+        if (flushResult != 0) return flushResult;
+
+        // ---------- Rank multiplicities ----------
+        // Packed quartet: quadsRank | trips1 | trips2 | pair1 | pair2. Sentinel 0xF = absent.
+        uint256 mult = _rankMultiplicities(k.rankCount);
+        return _evaluateByMult(k.rankMask, mult);
+    }
+
+    /// @dev Tally rank/suit histograms and bitmasks.
+    function _count(uint8[7] memory cards) private pure returns (Counts memory k) {
+        for (uint256 i = 0; i < 7; i++) {
+            uint8 card = cards[i];
+            uint8 r = card % 13;
+            uint8 s = card / 13;
+            k.rankCount[r] += 1;
+            k.suitCount[s] += 1;
+            k.rankMask |= uint16(1) << uint16(r);
+            k.suitRankMask[s] |= uint16(1) << uint16(r);
+        }
+    }
+
+    /// @dev Returns a non-zero encoded rank for a flush / straight-flush, else 0.
+    function _evaluateFlush(Counts memory k) private pure returns (uint256) {
+        uint256 flushSuit = 4;
         for (uint256 s = 0; s < 4; s++) {
-            if (suitCount[s] >= 5) {
+            if (k.suitCount[s] >= 5) {
                 flushSuit = s;
                 break;
             }
         }
+        if (flushSuit == 4) return 0;
 
-        if (flushSuit != 4) {
-            // Check for a straight flush within that suit only.
-            uint16 sm = suitRankMask[flushSuit];
-            uint256 shi = _highestStraight(sm);
-            if (shi != type(uint256).max) {
-                return _encode(CLASS_STRAIGHT_FLUSH, shi, 0, 0, 0, 0);
-            }
-            // Plain flush: pick the 5 highest ranks of that suit.
-            (uint256 f1, uint256 f2, uint256 f3, uint256 f4, uint256 f5) = _topFiveFromMask(sm);
-            return _encode(CLASS_FLUSH, f1, f2, f3, f4, f5);
+        uint16 sm = k.suitRankMask[flushSuit];
+        uint256 shi = _highestStraight(sm);
+        if (shi != type(uint256).max) {
+            return _encode(CLASS_STRAIGHT_FLUSH, shi, 0, 0, 0, 0);
         }
+        (uint256 f1, uint256 f2, uint256 f3, uint256 f4, uint256 f5) = _topFiveFromMask(sm);
+        return _encode(CLASS_FLUSH, f1, f2, f3, f4, f5);
+    }
 
-        // ---------- Rank multiplicities ----------
-        // Iterate from highest rank down so that "best of class" ordering is natural.
-        uint256 quadsRank = type(uint256).max;
-        uint256 trips1 = type(uint256).max;
-        uint256 trips2 = type(uint256).max;
-        uint256 pair1 = type(uint256).max;
-        uint256 pair2 = type(uint256).max;
+    /// @dev Pack quadsRank / trips1 / trips2 / pair1 / pair2 into a uint40 (5 nibbles), MSB first.
+    ///      Absent = 0xF (ranks are only 0..12 so 0xF is distinguishable).
+    function _rankMultiplicities(uint8[13] memory rankCount) private pure returns (uint256 packed) {
+        uint256 quadsRank = 0xF;
+        uint256 trips1 = 0xF;
+        uint256 trips2 = 0xF;
+        uint256 pair1 = 0xF;
+        uint256 pair2 = 0xF;
 
         for (uint256 ri = 13; ri > 0; ri--) {
             uint256 r = ri - 1;
             uint8 n = rankCount[r];
             if (n == 4) {
-                if (quadsRank == type(uint256).max) quadsRank = r;
+                if (quadsRank == 0xF) quadsRank = r;
             } else if (n == 3) {
-                if (trips1 == type(uint256).max) trips1 = r;
-                else if (trips2 == type(uint256).max) trips2 = r;
+                if (trips1 == 0xF) trips1 = r;
+                else if (trips2 == 0xF) trips2 = r;
             } else if (n == 2) {
-                if (pair1 == type(uint256).max) pair1 = r;
-                else if (pair2 == type(uint256).max) pair2 = r;
+                if (pair1 == 0xF) pair1 = r;
+                else if (pair2 == 0xF) pair2 = r;
             }
         }
+        packed = (quadsRank << 16) | (trips1 << 12) | (trips2 << 8) | (pair1 << 4) | pair2;
+    }
 
-        // ---------- Quads ----------
-        if (quadsRank != type(uint256).max) {
-            // Kicker: the highest rank that isn't the quad.
+    function _evaluateByMult(uint16 rankMask, uint256 mult) private pure returns (uint256) {
+        uint256 quadsRank = (mult >> 16) & 0xF;
+        uint256 trips1 = (mult >> 12) & 0xF;
+        uint256 trips2 = (mult >> 8) & 0xF;
+        uint256 pair1 = (mult >> 4) & 0xF;
+        uint256 pair2 = mult & 0xF;
+
+        // Quads
+        if (quadsRank != 0xF) {
             uint256 kicker = _highestExcluding(rankMask, quadsRank, type(uint256).max);
             return _encode(CLASS_QUADS, quadsRank, kicker, 0, 0, 0);
         }
 
-        // ---------- Full house ----------
-        if (trips1 != type(uint256).max && (trips2 != type(uint256).max || pair1 != type(uint256).max)) {
-            // Best full house is "best trips + best pair/leftover trips".
-            uint256 pairForFull = (trips2 != type(uint256).max && (pair1 == type(uint256).max || trips2 > pair1))
-                ? trips2
-                : pair1;
+        // Full house
+        if (trips1 != 0xF && (trips2 != 0xF || pair1 != 0xF)) {
+            uint256 pairForFull = (trips2 != 0xF && (pair1 == 0xF || trips2 > pair1)) ? trips2 : pair1;
             return _encode(CLASS_FULL_HOUSE, trips1, pairForFull, 0, 0, 0);
         }
 
-        // ---------- Straight ----------
+        // Straight
         uint256 shiAll = _highestStraight(rankMask);
         if (shiAll != type(uint256).max) {
             return _encode(CLASS_STRAIGHT, shiAll, 0, 0, 0, 0);
         }
 
-        // ---------- Trips ----------
-        if (trips1 != type(uint256).max) {
-            // Two kickers, excluding the trips rank.
+        // Trips
+        if (trips1 != 0xF) {
             uint256 k1 = _highestExcluding(rankMask, trips1, type(uint256).max);
             uint256 k2 = _highestExcluding(rankMask, trips1, k1);
             return _encode(CLASS_TRIPS, trips1, k1, k2, 0, 0);
         }
 
-        // ---------- Two pair ----------
-        if (pair1 != type(uint256).max && pair2 != type(uint256).max) {
+        // Two pair
+        if (pair1 != 0xF && pair2 != 0xF) {
             uint256 k1 = _highestExcluding(rankMask, pair1, pair2);
             return _encode(CLASS_TWO_PAIR, pair1, pair2, k1, 0, 0);
         }
 
-        // ---------- One pair ----------
-        if (pair1 != type(uint256).max) {
+        // One pair
+        if (pair1 != 0xF) {
             uint256 k1 = _highestExcluding(rankMask, pair1, type(uint256).max);
             uint256 k2 = _highestExcluding(rankMask, pair1, k1);
             uint256 k3 = _highestExcludingMany(rankMask, pair1, k1, k2);
             return _encode(CLASS_PAIR, pair1, k1, k2, k3, 0);
         }
 
-        // ---------- High card ----------
+        // High card
         (uint256 h1, uint256 h2, uint256 h3, uint256 h4, uint256 h5) = _topFiveFromMask(rankMask);
         return _encode(CLASS_HIGH_CARD, h1, h2, h3, h4, h5);
     }
@@ -168,20 +185,25 @@ library PokerHandEvaluator {
         return (class_ << CLASS_SHIFT) | (a << 16) | (b << 12) | (c << 8) | (d << 4) | e;
     }
 
+    /// @dev Bit `shift` of a uint16, computed without triggering the "implicit uint256 shift on uint16"
+    ///      compiler warning. Callers only ever pass shift in [0, 12].
+    function _bit(uint256 shift) private pure returns (uint16) {
+        return uint16(1) << uint16(shift);
+    }
+
     /// @dev Given a 13-bit rank bitmask, return the top rank of the highest 5-in-a-row run, including
     ///      the wheel (A-2-3-4-5 which is ranks 12,0,1,2,3). Returns type(uint256).max if none.
     function _highestStraight(uint16 mask) private pure returns (uint256) {
         // Walk from the top (A=12). Check every window of 5 consecutive ranks.
         for (uint256 i = 12; i >= 4; i--) {
-            uint16 window = (uint16(1) << i) | (uint16(1) << (i - 1)) | (uint16(1) << (i - 2))
-                | (uint16(1) << (i - 3)) | (uint16(1) << (i - 4));
+            uint16 window = _bit(i) | _bit(i - 1) | _bit(i - 2) | _bit(i - 3) | _bit(i - 4);
             if ((mask & window) == window) {
                 return i;
             }
             if (i == 4) break; // guard against underflow
         }
         // Wheel: A (12), 2 (0), 3 (1), 4 (2), 5 (3)
-        uint16 wheel = (uint16(1) << 12) | (uint16(1) << 0) | (uint16(1) << 1) | (uint16(1) << 2) | (uint16(1) << 3);
+        uint16 wheel = _bit(12) | _bit(0) | _bit(1) | _bit(2) | _bit(3);
         if ((mask & wheel) == wheel) {
             // 5-high straight. Rank 3 (=5).
             return 3;
@@ -199,7 +221,7 @@ library PokerHandEvaluator {
         uint256 idx;
         for (uint256 i = 13; i > 0; i--) {
             uint256 r = i - 1;
-            if ((mask & (uint16(1) << r)) != 0) {
+            if ((mask & _bit(r)) != 0) {
                 out[idx++] = r;
                 if (idx == 5) break;
             }
@@ -212,7 +234,7 @@ library PokerHandEvaluator {
         for (uint256 i = 13; i > 0; i--) {
             uint256 r = i - 1;
             if (r == excludeA || r == excludeB) continue;
-            if ((mask & (uint16(1) << r)) != 0) return r;
+            if ((mask & _bit(r)) != 0) return r;
         }
         return 0;
     }
@@ -226,7 +248,7 @@ library PokerHandEvaluator {
         for (uint256 i = 13; i > 0; i--) {
             uint256 r = i - 1;
             if (r == excludeA || r == excludeB || r == excludeC) continue;
-            if ((mask & (uint16(1) << r)) != 0) return r;
+            if ((mask & _bit(r)) != 0) return r;
         }
         return 0;
     }
