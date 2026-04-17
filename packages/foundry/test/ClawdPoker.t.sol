@@ -211,10 +211,10 @@ contract ClawdPokerTest is Test {
         vm.prank(dealer);
         poker.dealCommunity(gameId, flop, flopSalts, flopIdx);
 
-        // Flop: both check.
-        vm.prank(alice); // A acts first postflop (our contract resets currentBettor to A via _advanceStreet)
-        poker.act(gameId, 1, 0);
+        // Flop: both check. Post-flop first actor is BB (bob) per M-02 fix.
         vm.prank(bob);
+        poker.act(gameId, 1, 0);
+        vm.prank(alice);
         poker.act(gameId, 1, 0);
 
         // Dealer deals turn (cards[3] / idx 3)
@@ -224,8 +224,8 @@ contract ClawdPokerTest is Test {
         vm.prank(dealer);
         poker.dealCommunity(gameId, turn, turnSalts, turnIdx);
 
-        vm.prank(alice); poker.act(gameId, 1, 0);
         vm.prank(bob); poker.act(gameId, 1, 0);
+        vm.prank(alice); poker.act(gameId, 1, 0);
 
         // Dealer deals river (cards[4] / idx 10)
         uint8[] memory river = _slice(cards, 4, 5);
@@ -234,8 +234,8 @@ contract ClawdPokerTest is Test {
         vm.prank(dealer);
         poker.dealCommunity(gameId, river, riverSalts, riverIdx);
 
-        vm.prank(alice); poker.act(gameId, 1, 0);
         vm.prank(bob); poker.act(gameId, 1, 0);
+        vm.prank(alice); poker.act(gameId, 1, 0);
         // After river close, phase == SHOWDOWN.
         ClawdPoker.Game memory gPeek = poker.getGame(gameId);
         assertEq(uint8(gPeek.phase), uint8(ClawdPoker.Phase.SHOWDOWN));
@@ -271,6 +271,36 @@ contract ClawdPokerTest is Test {
     function _sliceB(bytes32[] memory src, uint256 start, uint256 end) internal pure returns (bytes32[] memory out) {
         out = new bytes32[](end - start);
         for (uint256 i = start; i < end; i++) out[i - start] = src[i];
+    }
+
+    /// @dev Walk a game that has already committed (alice=A, bob=B) to SHOWDOWN
+    ///      via checks on every street. `cards`/`deckIdx`/`salts` must be laid
+    ///      out as the happy-path helper expects:
+    ///        [0..3] = flop, [3..4] = turn, [4..5] = river, [5..9] = holes.
+    ///      Preflop first actor: playerB (Bob) per spec.
+    ///      Post-flop first actor: playerB (Bob) per canonical heads-up Hold'em.
+    function _checkDownToShowdown(
+        uint256 gameId,
+        uint8[] memory cards,
+        uint8[] memory deckIdx,
+        bytes32[] memory salts
+    ) internal {
+        // PREFLOP: bob first (SB=playerA=dealer in heads-up => BB=playerB acts first preflop)
+        vm.prank(bob); poker.act(gameId, 1, 0);
+        vm.prank(alice); poker.act(gameId, 1, 0);
+        vm.prank(dealer);
+        poker.dealCommunity(gameId, _slice(cards, 0, 3), _sliceB(salts, 0, 3), _slice(deckIdx, 0, 3));
+        // FLOP -> TURN -> RIVER: BB (bob) first per canonical heads-up.
+        vm.prank(bob); poker.act(gameId, 1, 0);
+        vm.prank(alice); poker.act(gameId, 1, 0);
+        vm.prank(dealer);
+        poker.dealCommunity(gameId, _slice(cards, 3, 4), _sliceB(salts, 3, 4), _slice(deckIdx, 3, 4));
+        vm.prank(bob); poker.act(gameId, 1, 0);
+        vm.prank(alice); poker.act(gameId, 1, 0);
+        vm.prank(dealer);
+        poker.dealCommunity(gameId, _slice(cards, 4, 5), _sliceB(salts, 4, 5), _slice(deckIdx, 4, 5));
+        vm.prank(bob); poker.act(gameId, 1, 0);
+        vm.prank(alice); poker.act(gameId, 1, 0);
     }
 
     // ------------------------------------------------------------------
@@ -328,6 +358,137 @@ contract ClawdPokerTest is Test {
         assertEq(gAfter.winner, alice);
         uint256 expectedPayout = (2 * buyIn) * 8_500 / 10_000;
         assertEq(clawd.balanceOf(alice) - aliceBalBefore, expectedPayout);
+    }
+
+    function test_Showdown_NonRevealerLosesOnTimeout() public {
+        // H-02 regression: at SHOWDOWN, claimTimeout must use handRevealed,
+        // not currentBettor, to pick the loser. Player who refuses to reveal
+        // loses; revealer wins even if currentBettor is set against them.
+        uint256 buyIn = 1_000_000e18;
+
+        // Re-use the happy-path fixture: get the game to SHOWDOWN with both
+        // players having had the chance to reveal.
+        uint8[] memory cards = new uint8[](9);
+        uint8[] memory deckIdx = new uint8[](9);
+        bytes32[] memory salts = new bytes32[](9);
+        cards[0] = 12; deckIdx[0] = 0; salts[0] = keccak256("s0");
+        cards[1] = 25; deckIdx[1] = 1; salts[1] = keccak256("s1");
+        cards[2] = 38; deckIdx[2] = 2; salts[2] = keccak256("s2");
+        cards[3] = 1;  deckIdx[3] = 3; salts[3] = keccak256("s3");
+        cards[4] = 2;  deckIdx[4] = 10; salts[4] = keccak256("s4");
+        cards[5] = 11; deckIdx[5] = 4; salts[5] = keccak256("s5");
+        cards[6] = 37; deckIdx[6] = 5; salts[6] = keccak256("s6");
+        cards[7] = 9;  deckIdx[7] = 6; salts[7] = keccak256("s7");
+        cards[8] = 35; deckIdx[8] = 7; salts[8] = keccak256("s8");
+
+        uint256 gameId = _startGameAndCommit(alice, bob, buyIn, cards, deckIdx, salts);
+
+        // Walk to SHOWDOWN by checking through every street. Preflop: Bob (BB)
+        // acts first. Post-flop: Bob (BB) acts first per canonical heads-up.
+        _checkDownToShowdown(gameId, cards, deckIdx, salts);
+
+        // Alice reveals; Bob refuses. 24h passes. Alice claims timeout.
+        vm.prank(alice);
+        poker.revealHand(gameId, cards[5], cards[6], salts[5], salts[6]);
+
+        uint256 aliceBalBefore = clawd.balanceOf(alice);
+        vm.warp(block.timestamp + 25 hours);
+        vm.prank(alice);
+        poker.claimTimeout(gameId);
+
+        ClawdPoker.Game memory gAfter = poker.getGame(gameId);
+        assertEq(uint8(gAfter.phase), uint8(ClawdPoker.Phase.COMPLETE));
+        assertEq(gAfter.winner, alice, "non-revealer (bob) must be the loser");
+        uint256 expectedPayout = (2 * buyIn) * 8_500 / 10_000;
+        assertEq(clawd.balanceOf(alice) - aliceBalBefore, expectedPayout);
+    }
+
+    function test_Showdown_NeitherRevealed_RefundsBoth() public {
+        // H-02: when NEITHER player reveals at showdown, claimTimeout refunds
+        // both buy-ins (no burn, no winner). Reputation is unchanged.
+        uint256 buyIn = 1_000_000e18;
+
+        uint8[] memory cards = new uint8[](9);
+        uint8[] memory deckIdx = new uint8[](9);
+        bytes32[] memory salts = new bytes32[](9);
+        cards[0] = 12; deckIdx[0] = 0; salts[0] = keccak256("n0");
+        cards[1] = 25; deckIdx[1] = 1; salts[1] = keccak256("n1");
+        cards[2] = 38; deckIdx[2] = 2; salts[2] = keccak256("n2");
+        cards[3] = 1;  deckIdx[3] = 3; salts[3] = keccak256("n3");
+        cards[4] = 2;  deckIdx[4] = 10; salts[4] = keccak256("n4");
+        cards[5] = 11; deckIdx[5] = 4; salts[5] = keccak256("n5");
+        cards[6] = 37; deckIdx[6] = 5; salts[6] = keccak256("n6");
+        cards[7] = 9;  deckIdx[7] = 6; salts[7] = keccak256("n7");
+        cards[8] = 35; deckIdx[8] = 7; salts[8] = keccak256("n8");
+
+        uint256 gameId = _startGameAndCommit(alice, bob, buyIn, cards, deckIdx, salts);
+        _checkDownToShowdown(gameId, cards, deckIdx, salts);
+
+        uint256 aliceBalBefore = clawd.balanceOf(alice);
+        uint256 bobBalBefore = clawd.balanceOf(bob);
+        uint256 supplyBefore = clawd.totalSupply();
+
+        vm.warp(block.timestamp + 25 hours);
+        vm.prank(alice);
+        poker.claimTimeout(gameId);
+
+        // Half-refund each (odd wei goes to playerB; 2*buyIn is always even).
+        assertEq(clawd.balanceOf(alice) - aliceBalBefore, buyIn);
+        assertEq(clawd.balanceOf(bob) - bobBalBefore, buyIn);
+        // No burn happened.
+        assertEq(clawd.totalSupply(), supplyBefore);
+        // No winner recorded; reputation and streak unchanged.
+        ClawdPoker.Game memory gAfter = poker.getGame(gameId);
+        assertEq(gAfter.winner, address(0));
+        assertEq(poker.reputation(alice), 0);
+        assertEq(poker.reputation(bob), 0);
+    }
+
+    function test_PartialCallAllIn_ShortStackCallsAndAdvances() public {
+        // H-03 regression: a player whose remaining stack is SMALLER than the
+        // outstanding call delta must be able to go all-in for their stack.
+        // Before the fix, _moveToPot would revert InsufficientStack and the
+        // short player was forced to fold.
+        //
+        // Construction (preflop, BB=bob acts first):
+        //   bob raises to 300k  -> committedB=300k, stackB=700k
+        //   alice raises to 1M (all-in) -> committedA=1M, stackA=0
+        //   bob needs 700k (1M - 300k) to match; stackB=700k. Full call.
+        // To force a SHORT call, we need alice's raise > (bob.committed + bob.stack).
+        // The largest legal raise is alice's total = 1M (buyIn); bob's ceiling
+        // is also 1M (300k already in + 700k stack). So a cross-raise preflop
+        // cannot produce a short call under symmetric buy-ins. Exercise the
+        // call path end-to-end (full all-in) which proves the _committedThisRound
+        // delta accounting works: bob pays only 700k, not 1M, and the call does
+        // not revert.
+        uint256 buyIn = 1_000_000e18;
+        uint8[] memory empty = new uint8[](0);
+        uint8[] memory emptyI = new uint8[](0);
+        bytes32[] memory emptyS = new bytes32[](0);
+        uint256 gameId = _startGameAndCommit(alice, bob, buyIn, empty, emptyI, emptyS);
+
+        // bob raises to 300k (committedB=300k, stackB=700k).
+        vm.prank(bob);
+        poker.act(gameId, 3, 300_000e18);
+        // alice raises all-in to 1M (committedA=1M, stackA=0).
+        vm.prank(alice);
+        poker.act(gameId, 3, 1_000_000e18);
+
+        // bob must call 700k to match 1M. Before the fix, _call would pull
+        // `currentBet = 1M` from stackB (700k) and revert InsufficientStack.
+        // After the fix, _call pulls delta = 1M - 300k = 700k which matches
+        // the stack exactly, and the street closes with both all-in.
+        vm.prank(bob);
+        poker.act(gameId, 2, 0);
+
+        ClawdPoker.Game memory gAfter = poker.getGame(gameId);
+        // Both all-in: stacks drained, pot = 2M, currentBet reset.
+        assertEq(gAfter.stackA, 0, "alice all-in");
+        assertEq(gAfter.stackB, 0, "bob all-in");
+        assertEq(gAfter.pot, 2_000_000e18, "pot = 2 * buyIn");
+        assertEq(gAfter.currentBet, 0, "currentBet reset after call");
+        // Phase stays PREFLOP until dealer deals flop (no auto short-circuit).
+        assertEq(uint8(gAfter.phase), uint8(ClawdPoker.Phase.PREFLOP));
     }
 
     function test_Timeout_InDealingPhase_Reverts() public {

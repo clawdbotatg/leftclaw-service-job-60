@@ -181,6 +181,14 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
     // Street bookkeeping
     mapping(uint256 => bool) private _awaitingLastAct; // true if one player has already checked this street
 
+    /// @dev Chips each player has committed to the pot on the current street
+    ///      (reset in `_advanceStreet` on every street transition). Used by
+    ///      `_call` and `_raise` so the chips moved on each action equal the
+    ///      delta between the current bet level and what this player has
+    ///      already paid this round. Enables partial-call all-in: a
+    ///      short-stacked caller pays `min(stack, currentBet - committed)`.
+    mapping(uint256 => mapping(address => uint256)) private _committedThisRound;
+
     // ---------------------------------------------------------------------
     //                             Constructor
     // ---------------------------------------------------------------------
@@ -354,18 +362,30 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
 
     function _call(Game storage g, uint256 gameId) internal {
         if (g.currentBet == 0) revert InvalidAction();
-        uint256 amt = g.currentBet;
-        _moveToPot(g, msg.sender, amt);
+        // Pay only the delta: currentBet minus what this player already
+        // committed this round. If the caller's stack is smaller than that
+        // delta, they go all-in for their remaining stack and the action
+        // still closes the street (H-03: partial-call all-in).
+        uint256 owed = g.currentBet - _committedThisRound[gameId][msg.sender];
+        uint256 stack = _stackOf(g, msg.sender);
+        uint256 pay = stack < owed ? stack : owed;
+        _moveToPot(g, msg.sender, pay);
+        _committedThisRound[gameId][msg.sender] += pay;
+        // A call closes the street whether full-call or short-call all-in.
         g.currentBet = 0;
-        // A "call" closes the street: both players are even.
         _awaitingLastAct[gameId] = false;
         _advanceStreet(g, gameId);
     }
 
     function _raise(Game storage g, uint256 gameId, uint256 amount) internal {
         if (amount <= g.currentBet) revert InvalidRaise();
-        // Raiser puts in `amount` chips THIS action (beyond whatever they already matched).
-        _moveToPot(g, msg.sender, amount);
+        // Raiser pays only the delta between the new bet level and whatever
+        // they already put in this round.
+        uint256 owed = amount - _committedThisRound[gameId][msg.sender];
+        uint256 stack = _stackOf(g, msg.sender);
+        if (stack < owed) revert InsufficientStack();
+        _moveToPot(g, msg.sender, owed);
+        _committedThisRound[gameId][msg.sender] += owed;
         g.currentBet = amount;
         _awaitingLastAct[gameId] = false;
         _flipBettor(g);
@@ -382,6 +402,10 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
         g.pot += amt;
     }
 
+    function _stackOf(Game storage g, address who) internal view returns (uint256) {
+        return who == g.playerA ? g.stackA : g.stackB;
+    }
+
     function _flipBettor(Game storage g) internal {
         g.currentBettor = (g.currentBettor == g.playerA) ? g.playerB : g.playerA;
     }
@@ -392,22 +416,28 @@ contract ClawdPoker is VRFConsumerBaseV2Plus {
         //   FLOP    -> wait for dealer to deal turn
         //   TURN    -> wait for dealer to deal river
         //   RIVER   -> go straight to SHOWDOWN
-        // Betting phases between streets simply reset currentBet / currentBettor.
         // We only actually transition to SHOWDOWN here (after river).
         if (g.phase == Phase.RIVER) {
             g.phase = Phase.SHOWDOWN;
+            // Defuse H-02: currentBettor has no meaning in SHOWDOWN and must not
+            // be consulted as the timeout loser.
+            g.currentBettor = address(0);
             emit PhaseAdvanced(gameId, Phase.SHOWDOWN);
             return;
         }
-        // Otherwise we're mid-hand: the dealer must post community cards. Reset
-        // currentBet and make playerB act first on each subsequent street (canonical heads-up
-        // post-flop has the SB/dealer act first, which is playerA; but the spec says B acts
-        // first preflop with dealer as SB. We mirror canonical rules post-flop: playerA first.
+        // Otherwise we're mid-hand: the dealer must post community cards next.
+        // Reset currentBet and seed first-actor-of-next-street per canonical
+        // heads-up Hold'em (M-02 fix):
+        //   - Pre-flop: BB (playerB) acts first.
+        //   - Post-flop (flop/turn/river): BB (playerB) still acts first.
+        // i.e., the BB acts first on every street in heads-up. The ternary below
+        // collapses to "always playerB", but is written explicitly to document
+        // intent and to give a stable hook if positional rules ever diverge.
         g.currentBet = 0;
-        g.currentBettor = (g.phase == Phase.PREFLOP) ? g.currentBettor : g.playerA;
-        // Flag: currentBettor is conceptually "first to act on next street" -- but the dealer
-        // may need to reveal community cards first. For simplicity, we keep currentBettor as-is
-        // and reset it again on the next action once the street has been dealt.
+        g.currentBettor = g.playerB;
+        // Reset per-round commitments used by the partial-call-all-in logic.
+        _committedThisRound[gameId][g.playerA] = 0;
+        _committedThisRound[gameId][g.playerB] = 0;
     }
 
     // ---------------------------------------------------------------------
