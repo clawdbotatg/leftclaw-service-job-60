@@ -10,7 +10,7 @@ type Props = {
   disabled?: boolean;
 };
 
-const streakCap = (s: number): bigint | null => {
+export const streakCap = (s: number): bigint | null => {
   if (s <= 2) return 10_000_000n * 10n ** 18n;
   if (s <= 5) return 50_000_000n * 10n ** 18n;
   if (s <= 9) return 200_000_000n * 10n ** 18n;

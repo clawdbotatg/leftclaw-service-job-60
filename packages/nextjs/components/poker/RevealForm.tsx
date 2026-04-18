@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { isHex } from "viem";
+import { useAccount } from "wagmi";
 import { cardLabel } from "~~/components/poker/Card";
 import { InlineError } from "~~/components/poker/InlineError";
 import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { writeAndOpen } from "~~/utils/mobile";
 import { parsePokerError } from "~~/utils/parseError";
 
 type Props = {
@@ -27,6 +29,7 @@ const parseCard = (raw: string): number | null => {
 
 export const RevealForm = ({ gameId, disabled }: Props) => {
   const { writeContractAsync, isPending } = useScaffoldWriteContract({ contractName: "ClawdPoker" });
+  const { connector } = useAccount();
   const [c1, setC1] = useState("");
   const [c2, setC2] = useState("");
   const [s1, setS1] = useState("");
@@ -47,10 +50,14 @@ export const RevealForm = ({ gameId, disabled }: Props) => {
     setErr(null);
     setBusy(true);
     try {
-      await writeContractAsync({
-        functionName: "revealHand",
-        args: [gameId, card1!, card2!, salt1!, salt2!],
-      });
+      await writeAndOpen(
+        () =>
+          writeContractAsync({
+            functionName: "revealHand",
+            args: [gameId, card1!, card2!, salt1!, salt2!],
+          }),
+        connector?.id,
+      );
     } catch (e) {
       setErr(parsePokerError(e));
     } finally {

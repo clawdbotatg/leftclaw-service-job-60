@@ -6,13 +6,14 @@ import { Address } from "@scaffold-ui/components";
 import type { NextPage } from "next";
 import { useAccount } from "wagmi";
 import { FireIcon } from "@heroicons/react/24/outline";
-import { BuyInInput, parseBuyIn } from "~~/components/poker/BuyInInput";
+import { BuyInInput, parseBuyIn, streakCap } from "~~/components/poker/BuyInInput";
 import { ClawdAmount } from "~~/components/poker/ClawdAmount";
 import { ConnectGate } from "~~/components/poker/ConnectGate";
 import { InlineError } from "~~/components/poker/InlineError";
 import { Reputation } from "~~/components/poker/Reputation";
 import { useClawdApproval } from "~~/components/poker/useClawdApproval";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { writeAndOpen } from "~~/utils/mobile";
 import { parsePokerError } from "~~/utils/parseError";
 
 const CreateGameCard = ({ streak }: { streak: number }) => {
@@ -23,10 +24,12 @@ const CreateGameCard = ({ streak }: { streak: number }) => {
 
   const approval = useClawdApproval();
   const { writeContractAsync, isPending } = useScaffoldWriteContract({ contractName: "ClawdPoker" });
+  const { connector } = useAccount();
   const [creating, setCreating] = useState(false);
 
   const enoughAllowance = amount !== null ? approval.hasEnough(amount) : false;
-  const disabled = !amount || amount === 0n;
+  const overCap = amount !== null && streakCap(streak) !== null && amount > (streakCap(streak) as bigint);
+  const disabled = !amount || amount === 0n || overCap;
 
   const onApprove = async () => {
     if (!amount) return;
@@ -40,7 +43,10 @@ const CreateGameCard = ({ streak }: { streak: number }) => {
     setErr(null);
     setCreating(true);
     try {
-      const hash = await writeContractAsync({ functionName: "createGame", args: [amount] });
+      const hash = await writeAndOpen(
+        () => writeContractAsync({ functionName: "createGame", args: [amount] }),
+        connector?.id,
+      );
       if (hash) setCreatedId(null);
     } catch (e) {
       setErr(parsePokerError(e));
@@ -92,7 +98,7 @@ const CreateGameCard = ({ streak }: { streak: number }) => {
 type OpenGameRowProps = { gameId: bigint };
 
 const OpenGameRow = ({ gameId }: OpenGameRowProps) => {
-  const { address: me } = useAccount();
+  const { address: me, connector } = useAccount();
   const { data: game } = useScaffoldReadContract({
     contractName: "ClawdPoker",
     functionName: "getGame",
@@ -117,10 +123,12 @@ const OpenGameRow = ({ gameId }: OpenGameRowProps) => {
   const buyIn = game.buyIn as bigint;
   const playerA = game.playerA as string;
   const isMyGame = me && me.toLowerCase() === playerA.toLowerCase();
+  const buyInUnready = buyIn === undefined || buyIn === 0n;
 
   const enoughAllowance = approval.hasEnough(buyIn);
 
   const onApprove = async () => {
+    if (buyInUnready) return;
     setErr(null);
     const ok = await approval.approve(buyIn);
     if (!ok && approval.error) setErr(approval.error);
@@ -130,7 +138,7 @@ const OpenGameRow = ({ gameId }: OpenGameRowProps) => {
     setErr(null);
     setJoining(true);
     try {
-      await writeContractAsync({ functionName: "joinGame", args: [gameId] });
+      await writeAndOpen(() => writeContractAsync({ functionName: "joinGame", args: [gameId] }), connector?.id);
       return true;
     } catch (e) {
       setErr(parsePokerError(e));
@@ -158,7 +166,7 @@ const OpenGameRow = ({ gameId }: OpenGameRowProps) => {
         ) : !enoughAllowance ? (
           <button
             className="btn btn-sm btn-primary"
-            disabled={approval.isApproving || approval.approveCooldown}
+            disabled={buyInUnready || approval.isApproving || approval.approveCooldown}
             onClick={onApprove}
           >
             {approval.isApproving ? "Approving..." : approval.approveCooldown ? "Waiting..." : "Approve"}

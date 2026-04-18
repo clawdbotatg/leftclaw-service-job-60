@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useAccount } from "wagmi";
 import { useDeployedContractInfo, useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { writeAndOpen } from "~~/utils/mobile";
 import { parsePokerError } from "~~/utils/parseError";
 
 type ApprovalState = {
@@ -18,7 +19,7 @@ type ApprovalState = {
 };
 
 export const useClawdApproval = (): ApprovalState => {
-  const { address: user } = useAccount();
+  const { address: user, connector } = useAccount();
   const { data: pokerInfo } = useDeployedContractInfo({ contractName: "ClawdPoker" });
   const pokerAddress = pokerInfo?.address;
 
@@ -53,10 +54,14 @@ export const useClawdApproval = (): ApprovalState => {
       setSubmitting(true);
       setError(null);
       try {
-        await writeContractAsync({
-          functionName: "approve",
-          args: [pokerAddress, amount],
-        });
+        await writeAndOpen(
+          () =>
+            writeContractAsync({
+              functionName: "approve",
+              args: [pokerAddress, amount],
+            }),
+          connector?.id,
+        );
         setApproveCooldown(true);
         setTimeout(async () => {
           await refetch();
@@ -70,7 +75,7 @@ export const useClawdApproval = (): ApprovalState => {
         setSubmitting(false);
       }
     },
-    [pokerAddress, writeContractAsync, refetch],
+    [pokerAddress, writeContractAsync, refetch, connector?.id],
   );
 
   return {
